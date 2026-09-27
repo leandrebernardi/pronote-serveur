@@ -1,6 +1,12 @@
 import express from 'express';
 import cors from 'cors';
-import { loginCredentials, instance as createInstance, cleanURL, homepage, gradesOverview, notebook } from 'pawnote';
+import { 
+  loginCredentials, 
+  instance as createInstance, 
+  homepage, 
+  gradesOverview, 
+  notebook 
+} from 'pawnote';
 
 const app = express();
 
@@ -15,19 +21,20 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    const rawUrl = (url || '').trim();
+    let rawUrl = (url || '').trim();
 
-    // 1. Nettoyage officiel de l'URL via la fonction intégrée pawnote
-    const cleanedUrl = cleanURL(rawUrl);
-    console.log('URL nettoyée par pawnote :', cleanedUrl);
+    // Normalisation de l'URL pour s'assurer qu'elle vise le point d'entrée élève
+    if (!rawUrl.includes('/eleve.html')) {
+      rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
+    }
 
-    const casTarget = (cas && cas !== 'none') ? cas : undefined;
+    console.log('Tentative de création d\'instance pour :', rawUrl);
 
-    // 2. Création de l'instance avec l'URL nettoyée
-    const instanceObj = await createInstance(cleanedUrl);
+    // 1. Instanciation de l'instance avec URL sous forme de chaîne pure
+    const instanceObj = await createInstance(rawUrl);
 
-    if (casTarget && instanceObj) {
-      instanceObj.cas = casTarget;
+    if (cas && cas !== 'none') {
+      instanceObj.cas = cas;
     }
 
     const credentials = {
@@ -35,12 +42,12 @@ app.post('/api/data', async (req, res) => {
       password: password,
     };
 
-    console.log('Instance créée. Tentative de connexion pour :', credentials.username);
+    console.log('Instance créée. Lancement de loginCredentials...');
 
-    // 3. Connexion à Pronote
+    // 2. Connexion
     const sessionHandle = await loginCredentials(instanceObj, credentials);
 
-    // 4. Récupération simultanée des données
+    // 3. Récupération des données
     const [
       homeData,
       gradesData,
