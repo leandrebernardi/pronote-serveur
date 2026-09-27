@@ -1,6 +1,13 @@
 import express from 'express';
 import cors from 'cors';
-import * as pawnote from 'pawnote';
+import { 
+  loginCredentials, 
+  instance as createInstance, 
+  AccountKind,
+  homepage, 
+  gradesOverview, 
+  notebook 
+} from 'pawnote';
 
 const app = express();
 
@@ -19,41 +26,40 @@ app.post('/api/data', async (req, res) => {
     const cleanUsername = (username || '').trim();
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    console.log('--- DIAGNOSTIC PAWNOTE ---');
-    console.log('Exports pawnote disponibles :', Object.keys(pawnote));
-
     console.log('1. Création de l\'instance Pronote...');
-    const session = await pawnote.instance(rawUrl);
-    console.log('Session instance créée :', JSON.stringify(session, null, 2));
+    const session = await createInstance(rawUrl);
 
-    // Si des comptes sont détectés
-    if (session?.accounts && session.accounts.length > 0) {
-      console.log('Comptes détectés dans l\'instance :', session.accounts);
-    }
+    // Extraction précise de l'espace ÉLÈVES dans les comptes retournés
+    const studentAccount = session?.accounts?.find(a => 
+      a.name?.toLowerCase().includes('élève') || 
+      a.name?.toLowerCase().includes('eleve')
+    );
 
-    // Essai avec l'account complet si disponible, ou tentative de login
-    const accountChoice = session?.accounts?.[0] || 'eleve.html';
-    console.log('Option de compte sélectionnée :', accountChoice);
+    // Utilisation de AccountKind.Student si disponible, sinon du chemin détecté
+    const targetKind = studentAccount ? studentAccount.kind || studentAccount.path : AccountKind.Student;
+
+    console.log('Espace sélectionné pour la connexion :', studentAccount ? studentAccount.name : 'Élève', '->', targetKind);
 
     console.log('2. Lancement de loginCredentials...');
-    const sessionHandle = await pawnote.loginCredentials(session, {
+    const sessionHandle = await loginCredentials(session, {
       url: rawUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: accountChoice.kind || accountChoice.path || accountChoice
+      kind: targetKind,
     });
 
     console.log('Connexion réussie ! Récupération des données...');
 
+    // 3. Récupération des données
     const [
       homeData,
       gradesData,
       notebookData,
     ] = await Promise.all([
-      pawnote.homepage(sessionHandle).catch(() => null),
-      pawnote.gradesOverview(sessionHandle).catch(() => null),
-      pawnote.notebook(sessionHandle).catch(() => null),
+      homepage(sessionHandle).catch(() => null),
+      gradesOverview(sessionHandle).catch(() => null),
+      notebook(sessionHandle).catch(() => null),
     ]);
 
     res.json({
