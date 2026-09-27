@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { loginCredentials, homepage, gradesOverview, notebook } from 'pawnote';
+import { loginCredentials, cleanURL, homepage, gradesOverview, notebook } from 'pawnote';
 
 const app = express();
 
@@ -15,21 +15,24 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    // 1. Définition des 2 objets séparés attendus par pawnote
+    // 1. Nettoyage et formatage automatique de l'URL avec l'utilitaire pawnote
+    const formattedUrl = cleanURL(url ? url.trim() : '');
+
+    // 2. Préparation des objets d'instance et d'identifiants
     const instance = {
-      url: url,
+      url: formattedUrl,
       cas: (cas && cas !== 'none') ? cas : undefined,
     };
 
     const credentials = {
-      username: username,
+      username: username ? username.trim() : '',
       password: password,
     };
 
-    // 2. Appel de loginCredentials avec 2 arguments distincts
+    // 3. Authentification
     const sessionHandle = await loginCredentials(instance, credentials);
 
-    // 3. Récupération des données une fois connecté
+    // 4. Récupération des données
     const [
       homeData,
       gradesData,
