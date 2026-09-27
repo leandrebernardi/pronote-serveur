@@ -17,7 +17,7 @@ app.post('/api/data', async (req, res) => {
   try {
     let rawUrl = (url || '').trim();
 
-    // Normalisation du suffixe /eleve.html
+    // S'assurer que l'URL se termine bien par /eleve.html
     if (rawUrl.endsWith('/pronote')) {
       rawUrl = `${rawUrl}/eleve.html`;
     } else if (rawUrl.endsWith('/pronote/')) {
@@ -28,16 +28,20 @@ app.post('/api/data', async (req, res) => {
 
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    // 1. Création de l'instance Pawnote avec AWAIT
+    // 1. Instanciation de l'instance Pawnote
     let instanceObj;
-    if (typeof createInstance === 'function') {
-      // instance() attend la chaîne URL en 1er paramètre
-      instanceObj = await createInstance(rawUrl, { cas: casTarget });
-    } else {
-      instanceObj = {
-        url: rawUrl,
-        cas: casTarget,
-      };
+    try {
+      // Premier essai : passage direct de l'URL à instance()
+      instanceObj = await createInstance(rawUrl);
+    } catch (e1) {
+      console.log('Essai instance(url) échoué, tentative alternative...', e1.message);
+      // Deuxième essai : objet de configuration
+      instanceObj = await createInstance({ url: rawUrl, cas: casTarget });
+    }
+
+    // Si un CAS est spécifié, on l'attache à l'instance
+    if (casTarget && instanceObj) {
+      instanceObj.cas = casTarget;
     }
 
     const credentials = {
@@ -45,7 +49,7 @@ app.post('/api/data', async (req, res) => {
       password: password,
     };
 
-    console.log('Instance Pawnote créée avec succès. Tentative d\'authentification...');
+    console.log('Instance Pawnote prête. Lancement de loginCredentials...');
 
     // 2. Authentification
     const sessionHandle = await loginCredentials(instanceObj, credentials);
