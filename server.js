@@ -29,19 +29,22 @@ app.post('/api/data', async (req, res) => {
 
     console.log('Création de l\'instance pour :', rawUrl);
 
-    // 1. Instanciation
+    // 1. Obtenir les données de l'établissement
     const instanceData = await createInstance(rawUrl);
 
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    // 2. Fusion de l'URL brute dans l'objet d'instance pour pawnote
+    // 2. Transmettre un objet URL formel ainsi que la chaîne raw URL
+    const urlObject = new URL(rawUrl);
+
     const instanceObj = {
       ...instanceData,
-      url: rawUrl,
+      url: urlObject,
+      rawUrl: rawUrl,
       cas: casTarget,
     };
 
-    // 3. Préparation des identifiants
+    // 3. Identifiants
     const credentials = {
       username: (username || '').trim(),
       password: password,
