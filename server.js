@@ -27,39 +27,49 @@ app.post('/api/data', async (req, res) => {
       rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
     }
 
-    console.log('Création de l\'instance pour :', rawUrl);
-
-    // 1. Obtenir les données de l'établissement
-    const instanceData = await createInstance(rawUrl);
-
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
+    const cleanUsername = (username || '').trim();
 
-    // 2. Transmettre un objet URL formel ainsi que la chaîne raw URL
-    const urlObject = new URL(rawUrl);
+    console.log('Signature loginCredentials :', loginCredentials.toString());
 
-    const instanceObj = {
-      ...instanceData,
-      url: urlObject,
-      rawUrl: rawUrl,
-      cas: casTarget,
-    };
+    let sessionHandle = null;
 
-    // 3. Identifiants
-    const credentials = {
-      username: (username || '').trim(),
-      password: password,
-    };
+    // Tentative 1 : loginCredentials(rawUrl, { username, password, cas })
+    try {
+      console.log('Test Signature 1 : (urlStr, credentials)');
+      sessionHandle = await loginCredentials(rawUrl, {
+        username: cleanUsername,
+        password: password,
+        cas: casTarget,
+      });
+    } catch (e1) {
+      console.log('Échec Signature 1 :', e1.message);
 
-    if (casTarget) {
-      credentials.cas = casTarget;
+      // Tentative 2 : loginCredentials({ url: rawUrl, username, password, cas })
+      try {
+        console.log('Test Signature 2 : ({ url, username, password, cas })');
+        sessionHandle = await loginCredentials({
+          url: rawUrl,
+          username: cleanUsername,
+          password: password,
+          cas: casTarget,
+        });
+      } catch (e2) {
+        console.log('Échec Signature 2 :', e2.message);
+
+        // Tentative 3 : loginCredentials(instanceData, { username, password }) avec structure pawnote
+        console.log('Test Signature 3 : (instanceObjectWithCleanURL)');
+        const instanceData = await createInstance(rawUrl);
+        sessionHandle = await loginCredentials(
+          { ...instanceData, server: rawUrl, root: rawUrl }, 
+          { username: cleanUsername, password: password, cas: casTarget }
+        );
+      }
     }
 
-    console.log('Lancement de loginCredentials...');
+    console.log('Authentification réussie ! Récupération des données...');
 
-    // 4. Authentification
-    const sessionHandle = await loginCredentials(instanceObj, credentials);
-
-    // 5. Récupération des données
+    // Récupération des données
     const [
       homeData,
       gradesData,
@@ -85,7 +95,7 @@ app.post('/api/data', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Détail Erreur Pronote :', err);
+    console.error('Détail Erreur Finale Pronote :', err);
 
     res.status(401).json({
       success: false,
