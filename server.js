@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { loginCredentials, instance as createInstance, cleanURL, homepage, gradesOverview, notebook } from 'pawnote';
+import { loginCredentials, instance as createInstance, homepage, gradesOverview, notebook } from 'pawnote';
 
 const app = express();
 
@@ -17,7 +17,7 @@ app.post('/api/data', async (req, res) => {
   try {
     let rawUrl = (url || '').trim();
 
-    // S'assurer que l'URL se termine bien par /eleve.html
+    // Normalisation du suffixe /eleve.html
     if (rawUrl.endsWith('/pronote')) {
       rawUrl = `${rawUrl}/eleve.html`;
     } else if (rawUrl.endsWith('/pronote/')) {
@@ -28,16 +28,12 @@ app.post('/api/data', async (req, res) => {
 
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    // 1. Instanciation sécurisée de l'objet d'instance Pronote
+    // 1. Création de l'instance Pawnote avec AWAIT
     let instanceObj;
     if (typeof createInstance === 'function') {
-      // Utilisation du builder interne pawnote s'il existe
-      instanceObj = createInstance({
-        url: rawUrl,
-        cas: casTarget,
-      });
+      // instance() attend la chaîne URL en 1er paramètre
+      instanceObj = await createInstance(rawUrl, { cas: casTarget });
     } else {
-      // Structure manuelle conforme aux attentes de pawnote
       instanceObj = {
         url: rawUrl,
         cas: casTarget,
@@ -49,7 +45,7 @@ app.post('/api/data', async (req, res) => {
       password: password,
     };
 
-    console.log('Tentative loginCredentials avec :', { instanceObj, credentialsUser: credentials.username });
+    console.log('Instance Pawnote créée avec succès. Tentative d\'authentification...');
 
     // 2. Authentification
     const sessionHandle = await loginCredentials(instanceObj, credentials);
