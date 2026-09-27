@@ -29,16 +29,10 @@ app.post('/api/data', async (req, res) => {
     console.log('1. Création de l\'instance Pronote...');
     const session = await createInstance(rawUrl);
 
-    // Extraction précise de l'espace ÉLÈVES dans les comptes retournés
-    const studentAccount = session?.accounts?.find(a => 
-      a.name?.toLowerCase().includes('élève') || 
-      a.name?.toLowerCase().includes('eleve')
-    );
+    // On utilise directement l'enum AccountKind.Student de pawnote
+    const studentKind = AccountKind?.Student ?? AccountKind?.ELEVE ?? 'eleve';
 
-    // Utilisation de AccountKind.Student si disponible, sinon du chemin détecté
-    const targetKind = studentAccount ? studentAccount.kind || studentAccount.path : AccountKind.Student;
-
-    console.log('Espace sélectionné pour la connexion :', studentAccount ? studentAccount.name : 'Élève', '->', targetKind);
+    console.log('Espace sélectionné via AccountKind :', studentKind);
 
     console.log('2. Lancement de loginCredentials...');
     const sessionHandle = await loginCredentials(session, {
@@ -46,7 +40,7 @@ app.post('/api/data', async (req, res) => {
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: targetKind,
+      kind: studentKind,
     });
 
     console.log('Connexion réussie ! Récupération des données...');
