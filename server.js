@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import pawnote from 'pawnote';
+import * as pawnote from 'pawnote';
 
 const app = express();
 
@@ -15,16 +15,12 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    // 1. Détection de la méthode de connexion
-    const loginFn = pawnote?.login || pawnote?.PronoteApi?.login || pawnote?.default?.login || pawnote;
-
-    console.log('Structure du module pawnote :', {
-      pawnoteKeys: Object.keys(pawnote || {}),
-      loginFnType: typeof loginFn,
-    });
+    // pawnote exporte ses fonctions sous forme d'objets nommés
+    const loginFn = pawnote.login || (pawnote.PronoteApi && pawnote.PronoteApi.login);
 
     if (typeof loginFn !== 'function') {
-      throw new Error(`Export pawnote non reconnu. Types détectés : ${typeof pawnote}`);
+      console.log('Exports disponibles dans pawnote :', Object.keys(pawnote));
+      throw new Error(`Méthode login introuvable. Exports disponibles : ${Object.keys(pawnote).join(', ')}`);
     }
 
     const loginOptions = {
@@ -37,10 +33,10 @@ app.post('/api/data', async (req, res) => {
       loginOptions.cas = cas;
     }
 
-    // 2. Connexion à Pronote
+    // 1. Connexion à Pronote
     const session = await loginFn(loginOptions);
 
-    // 3. Récupération des données
+    // 2. Récupération simultanée des données
     const [
       timetable,
       marks,
