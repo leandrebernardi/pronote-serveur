@@ -69,10 +69,13 @@ app.post('/api/data', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Erreur lors de la connexion Pronote :', err);
+    // Affiche le détail exact de l'erreur dans la console Render
+    console.error('Détail Erreur Pronote :', err);
+
+    // Renvoie le vrai message d'erreur à l'application frontend
     res.status(401).json({
       success: false,
-      error: 'Impossible de se connecter. Vérifiez vos identifiants, l\'URL ou l\'ENT sélectionné.',
+      error: err.message || 'Identifiants, URL ou ENT invalides.',
     });
   }
 });
