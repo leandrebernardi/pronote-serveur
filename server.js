@@ -15,19 +15,22 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    // 1. Nettoyage et formatage automatique de l'URL avec l'utilitaire pawnote
-    const formattedUrl = cleanURL(url ? url.trim() : '');
+    // 1. Nettoyage de la chaîne d'URL avec cleanURL
+    const rawUrl = (url || '').trim();
+    const parsedUrl = cleanURL(rawUrl);
 
-    // 2. Préparation des objets d'instance et d'identifiants
+    // 2. Création de l'objet instance pour pawnote
     const instance = {
-      url: formattedUrl,
+      url: parsedUrl,
       cas: (cas && cas !== 'none') ? cas : undefined,
     };
 
     const credentials = {
-      username: username ? username.trim() : '',
+      username: (username || '').trim(),
       password: password,
     };
+
+    console.log('Tentative de connexion à :', parsedUrl.toString());
 
     // 3. Authentification
     const sessionHandle = await loginCredentials(instance, credentials);
