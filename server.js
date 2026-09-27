@@ -15,20 +15,36 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    // Inspection et adaptation des arguments de loginCredentials
-    const casTarget = (cas && cas !== 'none') ? cas : undefined;
-
-    // pawnote.loginCredentials prend en argument (url, username, password, cas)
-    // ou un objet d'options. On tente l'appel direct des paramètres :
     let sessionHandle;
+
+    // Structure des options pour pawnote.loginCredentials
+    const options = {
+      instance: {
+        url: url,
+        cas: (cas && cas !== 'none') ? cas : undefined,
+      },
+      credentials: {
+        username: username,
+        password: password,
+      }
+    };
+
     try {
-      sessionHandle = await loginCredentials(url, username, password, casTarget);
-    } catch (firstAttemptErr) {
-      // Si la signature attend un objet unique :
-      sessionHandle = await loginCredentials({ url, username, password, cas: casTarget });
+      // Tentative 1 : Structure complète instance + credentials
+      sessionHandle = await loginCredentials(options);
+    } catch (e1) {
+      console.log('Essai 1 échoué, tentative structure alternative...', e1.message);
+      // Tentative 2 : Format à plat avec URL propre
+      sessionHandle = await loginCredentials({
+        url: url,
+        username: username,
+        password: password,
+        cas: (cas && cas !== 'none') ? cas : undefined,
+        device: 'Desktop'
+      });
     }
 
-    // Récupération des données via les fonctions de la session
+    // Récupération des données
     const [
       homeData,
       gradesData,
@@ -52,6 +68,7 @@ app.post('/api/data', async (req, res) => {
         notebook: notebookData,
       },
     });
+
   } catch (err) {
     console.error('Détail Erreur Pronote :', err);
 
