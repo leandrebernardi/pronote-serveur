@@ -7,24 +7,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Route de test pour vérifier que le serveur répond
 app.get('/', (req, res) => {
-  res.send('Serveur Pronote complet opérationnel 🚀');
+  res.send('Serveur Pronote complet avec support ENT opérationnel 🚀');
 });
 
-// Route principale pour tout récupérer en un seul appel
 app.post('/api/data', async (req, res) => {
-  const { url, username, password } = req.body;
+  // On récupère aussi la propriété 'cas' (ex: 'eduka', 'ac-paris', 'none', etc.)
+  const { url, username, password, cas } = req.body;
 
   try {
-    // 1. Connexion à la session Pronote
-    const session = await PronoteApi.login({
+    // Configuration des paramètres de connexion
+    const loginOptions = {
       url,
       username,
       password,
-    });
+    };
 
-    // 2. Récupération simultanée de toutes les sections de données
+    // Si un CAS/ENT particulier comme Eduka est spécifié
+    if (cas && cas !== 'none') {
+      loginOptions.cas = cas;
+    }
+
+    // 1. Connexion à Pronote via l'ENT
+    const session = await PronoteApi.login(loginOptions);
+
+    // 2. Récupération simultanée de toutes les données
     const [
       timetable,
       marks,
@@ -34,16 +41,16 @@ app.post('/api/data', async (req, res) => {
       menu,
       news,
     ] = await Promise.all([
-      session.timetable().catch(() => []),   // Emploi du temps
-      session.marks().catch(() => null),       // Notes et moyennes
-      session.homework().catch(() => []),    // Devoirs à faire
-      session.absences().catch(() => null),    // Retards et absences
-      session.evaluations().catch(() => []), // Compétences / Évaluations
-      session.menu().catch(() => []),        // Repas du jour / Cantine
-      session.news().catch(() => []),        // Information & Actualités
+      session.timetable().catch(() => []),
+      session.marks().catch(() => null),
+      session.homework().catch(() => []),
+      session.absences().catch(() => null),
+      session.evaluations().catch(() => []),
+      session.menu().catch(() => []),
+      session.news().catch(() => []),
     ]);
 
-    // 3. Renvoi de l'ensemble des données à l'application React Native
+    // 3. Renvoi de la réponse
     res.json({
       success: true,
       user: {
@@ -62,10 +69,10 @@ app.post('/api/data', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Erreur lors de la récupération des données Pronote :', err);
+    console.error('Erreur lors de la connexion Pronote :', err);
     res.status(401).json({
       success: false,
-      error: 'Impossible de récupérer les données. Vérifiez vos identifiants ou l\'URL.',
+      error: 'Impossible de se connecter. Vérifiez vos identifiants, l\'URL ou l\'ENT sélectionné.',
     });
   }
 });
