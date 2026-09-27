@@ -27,16 +27,21 @@ app.post('/api/data', async (req, res) => {
       rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
     }
 
-    console.log('Création instance pour :', rawUrl);
+    console.log('Création de l\'instance pour :', rawUrl);
 
     // 1. Instanciation
-    const instanceObj = await createInstance(rawUrl);
-
-    console.log('Structure de instanceObj :', JSON.stringify(instanceObj, null, 2));
+    const instanceData = await createInstance(rawUrl);
 
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    // 2. Préparation des identifiants
+    // 2. Fusion de l'URL brute dans l'objet d'instance pour pawnote
+    const instanceObj = {
+      ...instanceData,
+      url: rawUrl,
+      cas: casTarget,
+    };
+
+    // 3. Préparation des identifiants
     const credentials = {
       username: (username || '').trim(),
       password: password,
@@ -46,10 +51,12 @@ app.post('/api/data', async (req, res) => {
       credentials.cas = casTarget;
     }
 
-    // 3. Connexion
+    console.log('Lancement de loginCredentials...');
+
+    // 4. Authentification
     const sessionHandle = await loginCredentials(instanceObj, credentials);
 
-    // 4. Récupération des données
+    // 5. Récupération des données
     const [
       homeData,
       gradesData,
