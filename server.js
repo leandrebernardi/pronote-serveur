@@ -15,20 +15,20 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    const loginOptions = {
-      url,
-      username,
-      password,
-    };
+    // Inspection et adaptation des arguments de loginCredentials
+    const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    if (cas && cas !== 'none') {
-      loginOptions.cas = cas;
+    // pawnote.loginCredentials prend en argument (url, username, password, cas)
+    // ou un objet d'options. On tente l'appel direct des paramètres :
+    let sessionHandle;
+    try {
+      sessionHandle = await loginCredentials(url, username, password, casTarget);
+    } catch (firstAttemptErr) {
+      // Si la signature attend un objet unique :
+      sessionHandle = await loginCredentials({ url, username, password, cas: casTarget });
     }
 
-    // 1. Initialisation de la session via loginCredentials
-    const sessionHandle = await loginCredentials(loginOptions);
-
-    // 2. Récupération des données via les fonctions du module
+    // Récupération des données via les fonctions de la session
     const [
       homeData,
       gradesData,
