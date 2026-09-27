@@ -15,36 +15,21 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    let sessionHandle;
-
-    // Structure des options pour pawnote.loginCredentials
-    const options = {
-      instance: {
-        url: url,
-        cas: (cas && cas !== 'none') ? cas : undefined,
-      },
-      credentials: {
-        username: username,
-        password: password,
-      }
+    // 1. Définition des 2 objets séparés attendus par pawnote
+    const instance = {
+      url: url,
+      cas: (cas && cas !== 'none') ? cas : undefined,
     };
 
-    try {
-      // Tentative 1 : Structure complète instance + credentials
-      sessionHandle = await loginCredentials(options);
-    } catch (e1) {
-      console.log('Essai 1 échoué, tentative structure alternative...', e1.message);
-      // Tentative 2 : Format à plat avec URL propre
-      sessionHandle = await loginCredentials({
-        url: url,
-        username: username,
-        password: password,
-        cas: (cas && cas !== 'none') ? cas : undefined,
-        device: 'Desktop'
-      });
-    }
+    const credentials = {
+      username: username,
+      password: password,
+    };
 
-    // Récupération des données
+    // 2. Appel de loginCredentials avec 2 arguments distincts
+    const sessionHandle = await loginCredentials(instance, credentials);
+
+    // 3. Récupération des données une fois connecté
     const [
       homeData,
       gradesData,
