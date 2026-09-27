@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { loginCredentials, instance as createInstance, homepage, gradesOverview, notebook } from 'pawnote';
+import { loginCredentials, instance as createInstance, cleanURL, homepage, gradesOverview, notebook } from 'pawnote';
 
 const app = express();
 
@@ -15,31 +15,17 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    let rawUrl = (url || '').trim();
+    const rawUrl = (url || '').trim();
 
-    // S'assurer que l'URL se termine bien par /eleve.html
-    if (rawUrl.endsWith('/pronote')) {
-      rawUrl = `${rawUrl}/eleve.html`;
-    } else if (rawUrl.endsWith('/pronote/')) {
-      rawUrl = `${rawUrl}eleve.html`;
-    } else if (!rawUrl.endsWith('/eleve.html')) {
-      rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
-    }
+    // 1. Nettoyage officiel de l'URL via la fonction intégrée pawnote
+    const cleanedUrl = cleanURL(rawUrl);
+    console.log('URL nettoyée par pawnote :', cleanedUrl);
 
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    // 1. Instanciation de l'instance Pawnote
-    let instanceObj;
-    try {
-      // Premier essai : passage direct de l'URL à instance()
-      instanceObj = await createInstance(rawUrl);
-    } catch (e1) {
-      console.log('Essai instance(url) échoué, tentative alternative...', e1.message);
-      // Deuxième essai : objet de configuration
-      instanceObj = await createInstance({ url: rawUrl, cas: casTarget });
-    }
+    // 2. Création de l'instance avec l'URL nettoyée
+    const instanceObj = await createInstance(cleanedUrl);
 
-    // Si un CAS est spécifié, on l'attache à l'instance
     if (casTarget && instanceObj) {
       instanceObj.cas = casTarget;
     }
@@ -49,12 +35,12 @@ app.post('/api/data', async (req, res) => {
       password: password,
     };
 
-    console.log('Instance Pawnote prête. Lancement de loginCredentials...');
+    console.log('Instance créée. Tentative de connexion pour :', credentials.username);
 
-    // 2. Authentification
+    // 3. Connexion à Pronote
     const sessionHandle = await loginCredentials(instanceObj, credentials);
 
-    // 3. Récupération des données
+    // 4. Récupération simultanée des données
     const [
       homeData,
       gradesData,
