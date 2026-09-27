@@ -23,31 +23,33 @@ app.post('/api/data', async (req, res) => {
   try {
     let rawUrl = (url || '').trim();
 
-    // Normalisation de l'URL pour s'assurer qu'elle vise le point d'entrée élève
     if (!rawUrl.includes('/eleve.html')) {
       rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
     }
 
-    console.log('Tentative de création d\'instance pour :', rawUrl);
+    console.log('Création instance pour :', rawUrl);
 
-    // 1. Instanciation de l'instance avec URL sous forme de chaîne pure
+    // 1. Instanciation
     const instanceObj = await createInstance(rawUrl);
 
-    if (cas && cas !== 'none') {
-      instanceObj.cas = cas;
-    }
+    console.log('Structure de instanceObj :', JSON.stringify(instanceObj, null, 2));
 
+    const casTarget = (cas && cas !== 'none') ? cas : undefined;
+
+    // 2. Préparation des identifiants
     const credentials = {
       username: (username || '').trim(),
       password: password,
     };
 
-    console.log('Instance créée. Lancement de loginCredentials...');
+    if (casTarget) {
+      credentials.cas = casTarget;
+    }
 
-    // 2. Connexion
+    // 3. Connexion
     const sessionHandle = await loginCredentials(instanceObj, credentials);
 
-    // 3. Récupération des données
+    // 4. Récupération des données
     const [
       homeData,
       gradesData,
