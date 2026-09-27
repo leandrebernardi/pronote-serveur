@@ -3,6 +3,7 @@ import cors from 'cors';
 import { 
   loginCredentials, 
   instance as createInstance, 
+  cleanURL,
   homepage, 
   gradesOverview, 
   notebook 
@@ -31,13 +32,14 @@ app.post('/api/data', async (req, res) => {
     const cleanUsername = (username || '').trim();
 
     console.log('1. Création de l\'instance Pronote...');
-    // e (session) = objet retourné par createInstance
     const session = await createInstance(rawUrl);
 
-    console.log('2. Lancement de loginCredentials...');
-    // s (options) = objet contenant url, username, password, etc.
+    // Nettoyage de l'URL pour loginCredentials (pour cibler la racine du serveur Pronote)
+    const normalizedUrl = cleanURL(rawUrl);
+
+    console.log('2. Lancement de loginCredentials avec URL racine :', normalizedUrl);
     const sessionHandle = await loginCredentials(session, {
-      url: rawUrl,
+      url: normalizedUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
