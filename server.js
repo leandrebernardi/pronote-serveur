@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import * as pawnote from 'pawnote';
+import { loginCredentials, homepage, gradesOverview, notebook } from 'pawnote';
 
 const app = express();
 
@@ -15,14 +15,6 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    // pawnote exporte ses fonctions sous forme d'objets nommés
-    const loginFn = pawnote.login || (pawnote.PronoteApi && pawnote.PronoteApi.login);
-
-    if (typeof loginFn !== 'function') {
-      console.log('Exports disponibles dans pawnote :', Object.keys(pawnote));
-      throw new Error(`Méthode login introuvable. Exports disponibles : ${Object.keys(pawnote).join(', ')}`);
-    }
-
     const loginOptions = {
       url,
       username,
@@ -33,43 +25,31 @@ app.post('/api/data', async (req, res) => {
       loginOptions.cas = cas;
     }
 
-    // 1. Connexion à Pronote
-    const session = await loginFn(loginOptions);
+    // 1. Initialisation de la session via loginCredentials
+    const sessionHandle = await loginCredentials(loginOptions);
 
-    // 2. Récupération simultanée des données
+    // 2. Récupération des données via les fonctions du module
     const [
-      timetable,
-      marks,
-      homework,
-      absences,
-      evaluations,
-      menu,
-      news,
+      homeData,
+      gradesData,
+      notebookData,
     ] = await Promise.all([
-      session.timetable().catch(() => []),
-      session.marks().catch(() => null),
-      session.homework().catch(() => []),
-      session.absences().catch(() => null),
-      session.evaluations().catch(() => []),
-      session.menu().catch(() => []),
-      session.news().catch(() => []),
+      homepage(sessionHandle).catch(() => null),
+      gradesOverview(sessionHandle).catch(() => null),
+      notebook(sessionHandle).catch(() => null),
     ]);
 
     res.json({
       success: true,
       user: {
-        name: session.user?.name || 'Élève',
-        className: session.user?.studentClass?.name || '',
-        avatar: session.user?.avatar || null,
+        name: homeData?.user?.name || 'Élève',
+        className: homeData?.user?.studentClass?.name || '',
+        avatar: homeData?.user?.avatar || null,
       },
       data: {
-        timetable,
-        marks,
-        homework,
-        absences,
-        evaluations,
-        menu,
-        news,
+        homepage: homeData,
+        grades: gradesData,
+        notebook: notebookData,
       },
     });
   } catch (err) {
