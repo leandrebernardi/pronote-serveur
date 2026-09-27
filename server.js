@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const { PronoteApi } = require('pawnote');
+// Importation adaptée pour pawnote
+const pawnote = require('pawnote');
 
 const app = express();
 
@@ -12,26 +13,30 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/data', async (req, res) => {
-  // On récupère aussi la propriété 'cas' (ex: 'eduka', 'ac-paris', 'none', etc.)
   const { url, username, password, cas } = req.body;
 
   try {
-    // Configuration des paramètres de connexion
     const loginOptions = {
       url,
       username,
       password,
     };
 
-    // Si un CAS/ENT particulier comme Eduka est spécifié
     if (cas && cas !== 'none') {
       loginOptions.cas = cas;
     }
 
-    // 1. Connexion à Pronote via l'ENT
-    const session = await PronoteApi.login(loginOptions);
+    // Gestion de l'import (soit pawnote.login, soit pawnote.PronoteApi.login)
+    const loginMethod = pawnote.login || (pawnote.PronoteApi && pawnote.PronoteApi.login);
 
-    // 2. Récupération simultanée de toutes les données
+    if (!loginMethod) {
+      throw new Error("Méthode de connexion introuvable dans le module pawnote.");
+    }
+
+    // 1. Connexion à Pronote
+    const session = await loginMethod(loginOptions);
+
+    // 2. Récupération des données
     const [
       timetable,
       marks,
@@ -50,7 +55,7 @@ app.post('/api/data', async (req, res) => {
       session.news().catch(() => []),
     ]);
 
-    // 3. Renvoi de la réponse
+    // 3. Réponse au client
     res.json({
       success: true,
       user: {
@@ -69,13 +74,11 @@ app.post('/api/data', async (req, res) => {
       },
     });
   } catch (err) {
-    // Affiche le détail exact de l'erreur dans la console Render
     console.error('Détail Erreur Pronote :', err);
 
-    // Renvoie le vrai message d'erreur à l'application frontend
     res.status(401).json({
       success: false,
-      error: err.message || 'Identifiants, URL ou ENT invalides.',
+      error: err.message || 'Impossible de se connecter à Pronote.',
     });
   }
 });
