@@ -3,7 +3,6 @@ import cors from 'cors';
 import { 
   loginCredentials, 
   instance as createInstance, 
-  AccountKind,
   homepage, 
   gradesOverview, 
   notebook 
@@ -29,10 +28,13 @@ app.post('/api/data', async (req, res) => {
     console.log('1. Création de l\'instance Pronote...');
     const session = await createInstance(rawUrl);
 
-    // On utilise directement l'enum AccountKind.Student de pawnote
-    const studentKind = AccountKind?.Student ?? AccountKind?.ELEVE ?? 'eleve';
+    // Récupération de l'objet compte Élève exact retourné par l'instance
+    const studentAccountObj = session?.accounts?.find(a => 
+      a.name?.toLowerCase().includes('élève') || 
+      a.name?.toLowerCase().includes('eleve')
+    );
 
-    console.log('Espace sélectionné via AccountKind :', studentKind);
+    console.log('Compte Élève identifié :', studentAccountObj);
 
     console.log('2. Lancement de loginCredentials...');
     const sessionHandle = await loginCredentials(session, {
@@ -40,7 +42,7 @@ app.post('/api/data', async (req, res) => {
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: studentKind,
+      kind: studentAccountObj || 'mobile.eleve.html',
     });
 
     console.log('Connexion réussie ! Récupération des données...');
