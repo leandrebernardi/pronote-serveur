@@ -29,20 +29,14 @@ app.post('/api/data', async (req, res) => {
     console.log('1. Création de l\'instance Pronote...');
     const session = await createInstance(rawUrl);
 
-    // Extraction de la racine pure (ex: https://5010004g.index-education.net/pronote)
+    // Extraction de la racine (ex: https://5010004g.index-education.net/pronote)
     const baseUrl = cleanURL(rawUrl);
 
-    // Recherche de l'espace élève dans les comptes détectés
-    const studentAccount = session?.accounts?.find(a => 
-      a.name?.toLowerCase().includes('élève') || 
-      a.path?.includes('eleve')
-    );
-
-    // Utilisation du chemin identifié (ex: mobile.eleve.html ou eleve.html)
-    const accountKind = studentAccount ? studentAccount.path : 'mobile.eleve.html';
+    // On utilise directement 'eleve.html' pour cibler l'Espace Élève web standard
+    const accountKind = 'eleve.html';
 
     console.log('URL racine :', baseUrl);
-    console.log('Espace identifié :', accountKind);
+    console.log('Espace ciblé :', accountKind);
 
     console.log('2. Lancement de loginCredentials...');
     const sessionHandle = await loginCredentials(session, {
