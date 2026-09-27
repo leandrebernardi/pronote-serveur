@@ -1,13 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { 
-  loginCredentials, 
-  instance as createInstance, 
-  cleanURL,
-  homepage, 
-  gradesOverview, 
-  notebook 
-} from 'pawnote';
+import * as pawnote from 'pawnote';
 
 const app = express();
 
@@ -26,38 +19,41 @@ app.post('/api/data', async (req, res) => {
     const cleanUsername = (username || '').trim();
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
+    console.log('--- DIAGNOSTIC PAWNOTE ---');
+    console.log('Exports pawnote disponibles :', Object.keys(pawnote));
+
     console.log('1. Création de l\'instance Pronote...');
-    const session = await createInstance(rawUrl);
+    const session = await pawnote.instance(rawUrl);
+    console.log('Session instance créée :', JSON.stringify(session, null, 2));
 
-    // Extraction de la racine (ex: https://5010004g.index-education.net/pronote)
-    const baseUrl = cleanURL(rawUrl);
+    // Si des comptes sont détectés
+    if (session?.accounts && session.accounts.length > 0) {
+      console.log('Comptes détectés dans l\'instance :', session.accounts);
+    }
 
-    // On utilise directement 'eleve.html' pour cibler l'Espace Élève web standard
-    const accountKind = 'eleve.html';
-
-    console.log('URL racine :', baseUrl);
-    console.log('Espace ciblé :', accountKind);
+    // Essai avec l'account complet si disponible, ou tentative de login
+    const accountChoice = session?.accounts?.[0] || 'eleve.html';
+    console.log('Option de compte sélectionnée :', accountChoice);
 
     console.log('2. Lancement de loginCredentials...');
-    const sessionHandle = await loginCredentials(session, {
-      url: baseUrl,
+    const sessionHandle = await pawnote.loginCredentials(session, {
+      url: rawUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: accountKind,
+      kind: accountChoice.kind || accountChoice.path || accountChoice
     });
 
     console.log('Connexion réussie ! Récupération des données...');
 
-    // 3. Récupération des données
     const [
       homeData,
       gradesData,
       notebookData,
     ] = await Promise.all([
-      homepage(sessionHandle).catch(() => null),
-      gradesOverview(sessionHandle).catch(() => null),
-      notebook(sessionHandle).catch(() => null),
+      pawnote.homepage(sessionHandle).catch(() => null),
+      pawnote.gradesOverview(sessionHandle).catch(() => null),
+      pawnote.notebook(sessionHandle).catch(() => null),
     ]);
 
     res.json({
