@@ -23,7 +23,6 @@ app.post('/api/data', async (req, res) => {
   try {
     let rawUrl = (url || '').trim();
 
-    // S'assurer que l'URL se termine bien par /eleve.html
     if (rawUrl.endsWith('/pronote')) {
       rawUrl = `${rawUrl}/eleve.html`;
     } else if (rawUrl.endsWith('/pronote/')) {
@@ -38,12 +37,24 @@ app.post('/api/data', async (req, res) => {
     console.log('1. Création de l\'instance Pronote...');
     const session = await createInstance(rawUrl);
 
-    console.log('2. Lancement de loginCredentials avec URL complète :', rawUrl);
+    // Recherche du type/path de compte Élève dans l'instance
+    const studentAccount = session?.accounts?.find(a => 
+      a.name?.toLowerCase().includes('élève') || 
+      a.path?.includes('eleve')
+    );
+
+    // Kind pour pawnote (ex: 'eleve', 7, ou le chemin de l'espace)
+    const accountKind = studentAccount ? studentAccount.path : 'mobile.eleve.html';
+
+    console.log('Espace identifié :', accountKind);
+
+    console.log('2. Lancement de loginCredentials...');
     const sessionHandle = await loginCredentials(session, {
       url: rawUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
+      kind: accountKind,
     });
 
     console.log('Connexion réussie ! Récupération des données...');
