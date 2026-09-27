@@ -1,18 +1,15 @@
 {
   "name": "pronote-server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Serveur API Pronote avec Pawnote",
+  "main": "server.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "pawnote": "^1.6.2"
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "pawnote": "^1.1.0"
   }
 }
