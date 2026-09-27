@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-// Importation adaptée pour pawnote
-const pawnote = require('pawnote');
+const pawnoteModule = require('pawnote');
 
 const app = express();
 
@@ -26,17 +25,19 @@ app.post('/api/data', async (req, res) => {
       loginOptions.cas = cas;
     }
 
-    // Gestion de l'import (soit pawnote.login, soit pawnote.PronoteApi.login)
-    const loginMethod = pawnote.login || (pawnote.PronoteApi && pawnote.PronoteApi.login);
+    // Gestion robuste des exports de pawnote (CommonJS / ESM compatibility)
+    const pawnote = pawnoteModule.default || pawnoteModule;
+    const loginMethod = pawnote.login || (pawnote.PronoteApi && pawnote.PronoteApi.login) || pawnote;
 
-    if (!loginMethod) {
-      throw new Error("Méthode de connexion introuvable dans le module pawnote.");
+    if (typeof loginMethod !== 'function') {
+      console.error('Contenu du module pawnote :', pawnoteModule);
+      throw new Error("La fonction login est introuvable dans le module pawnote.");
     }
 
     // 1. Connexion à Pronote
     const session = await loginMethod(loginOptions);
 
-    // 2. Récupération des données
+    // 2. Récupération simultanée des données
     const [
       timetable,
       marks,
@@ -55,7 +56,7 @@ app.post('/api/data', async (req, res) => {
       session.news().catch(() => []),
     ]);
 
-    // 3. Réponse au client
+    // 3. Réponse JSON
     res.json({
       success: true,
       user: {
