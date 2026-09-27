@@ -3,6 +3,7 @@ import cors from 'cors';
 import { 
   loginCredentials, 
   instance as createInstance, 
+  cleanURL,
   homepage, 
   gradesOverview, 
   notebook 
@@ -21,36 +22,31 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    let rawUrl = (url || '').trim();
-
-    if (rawUrl.endsWith('/pronote')) {
-      rawUrl = `${rawUrl}/eleve.html`;
-    } else if (rawUrl.endsWith('/pronote/')) {
-      rawUrl = `${rawUrl}eleve.html`;
-    } else if (!rawUrl.endsWith('/eleve.html')) {
-      rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
-    }
-
-    const casTarget = (cas && cas !== 'none') ? cas : undefined;
+    const rawUrl = (url || '').trim();
     const cleanUsername = (username || '').trim();
+    const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
     console.log('1. Création de l\'instance Pronote...');
     const session = await createInstance(rawUrl);
 
-    // Recherche du type/path de compte Élève dans l'instance
+    // Extraction de la racine pure (ex: https://5010004g.index-education.net/pronote)
+    const baseUrl = cleanURL(rawUrl);
+
+    // Recherche de l'espace élève dans les comptes détectés
     const studentAccount = session?.accounts?.find(a => 
       a.name?.toLowerCase().includes('élève') || 
       a.path?.includes('eleve')
     );
 
-    // Kind pour pawnote (ex: 'eleve', 7, ou le chemin de l'espace)
+    // Utilisation du chemin identifié (ex: mobile.eleve.html ou eleve.html)
     const accountKind = studentAccount ? studentAccount.path : 'mobile.eleve.html';
 
+    console.log('URL racine :', baseUrl);
     console.log('Espace identifié :', accountKind);
 
     console.log('2. Lancement de loginCredentials...');
     const sessionHandle = await loginCredentials(session, {
-      url: rawUrl,
+      url: baseUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
