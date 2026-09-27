@@ -24,7 +24,6 @@ app.post('/api/data', async (req, res) => {
   try {
     let rawUrl = (url || '').trim();
 
-    // S'assurer que l'URL d'origine pointe sur /eleve.html pour l'instance
     if (!rawUrl.includes('/eleve.html')) {
       rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
     }
@@ -32,19 +31,24 @@ app.post('/api/data', async (req, res) => {
     const cleanUsername = (username || '').trim();
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
+    console.log('--- INSPECTION ACCOUNTKIND & SESSION ---');
+    console.log('AccountKind enum :', AccountKind);
+
     console.log('1. Création de l\'instance Pronote avec :', rawUrl);
     const session = await createInstance(rawUrl);
 
-    // Extraction du compte élève
     const studentAccount = session?.accounts?.find(a => 
       a.name?.toLowerCase().includes('élève') || 
       a.name?.toLowerCase().includes('eleve')
     );
 
-    // pawnote attend le type 'kind' (ex: AccountKind.Student ou le champ kind du compte)
-    const kindValue = studentAccount?.kind ?? AccountKind.Student;
+    console.log('Détails complets studentAccount :', studentAccount);
 
-    console.log('Espace kind extrait :', kindValue);
+    // Détermination de la valeur de kind selon les clés réelles de AccountKind
+    // Si AccountKind est un objet/enum, on prend la clé correspondant à l'élève
+    let targetKind = AccountKind?.ELEVE || AccountKind?.Student || AccountKind?.EspaceEleves || studentAccount;
+
+    console.log('Valeur choisie pour kind :', targetKind);
 
     console.log('2. Lancement de loginCredentials...');
     const sessionHandle = await loginCredentials(session, {
@@ -52,7 +56,7 @@ app.post('/api/data', async (req, res) => {
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: kindValue,
+      kind: targetKind,
     });
 
     console.log('Connexion réussie ! Récupération des données...');
