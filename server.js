@@ -1,14 +1,18 @@
 import express from 'express';
 import cors from 'cors';
-import { PronoteApi } from 'pawnote';
+import * as pawnoteModule from 'pawnote';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+// Détermination dynamique de l'objet PronoteApi / login
+const pawnote = pawnoteModule.default || pawnoteModule;
+const PronoteApi = pawnote.PronoteApi || pawnote;
+
 app.get('/', (req, res) => {
-  res.send('Serveur Pronote complet avec support ENT opérationnel 🚀');
+  res.send('Serveur Pronote complet opérationnel 🚀');
 });
 
 app.post('/api/data', async (req, res) => {
@@ -25,10 +29,15 @@ app.post('/api/data', async (req, res) => {
       loginOptions.cas = cas;
     }
 
-    // 1. Connexion à Pronote via pawnote
-    const session = await PronoteApi.login(loginOptions);
+    // Connexion
+    const loginFn = PronoteApi.login || pawnote.login || PronoteApi;
+    if (typeof loginFn !== 'function') {
+      throw new Error("Impossible d'initialiser la fonction de connexion Pawnote.");
+    }
 
-    // 2. Récupération simultanée de toutes les données
+    const session = await loginFn(loginOptions);
+
+    // Récupération simultanée des données
     const [
       timetable,
       marks,
@@ -47,7 +56,6 @@ app.post('/api/data', async (req, res) => {
       session.news().catch(() => []),
     ]);
 
-    // 3. Renvoi de la réponse JSON au client
     res.json({
       success: true,
       user: {
