@@ -30,46 +30,22 @@ app.post('/api/data', async (req, res) => {
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
     const cleanUsername = (username || '').trim();
 
-    console.log('Signature loginCredentials :', loginCredentials.toString());
+    console.log('1. Création de l\'instance Pronote...');
+    // e (session) = objet retourné par createInstance
+    const session = await createInstance(rawUrl);
 
-    let sessionHandle = null;
+    console.log('2. Lancement de loginCredentials...');
+    // s (options) = objet contenant url, username, password, etc.
+    const sessionHandle = await loginCredentials(session, {
+      url: rawUrl,
+      username: cleanUsername,
+      password: password,
+      cas: casTarget,
+    });
 
-    // Tentative 1 : loginCredentials(rawUrl, { username, password, cas })
-    try {
-      console.log('Test Signature 1 : (urlStr, credentials)');
-      sessionHandle = await loginCredentials(rawUrl, {
-        username: cleanUsername,
-        password: password,
-        cas: casTarget,
-      });
-    } catch (e1) {
-      console.log('Échec Signature 1 :', e1.message);
+    console.log('Connexion réussie ! Récupération des données...');
 
-      // Tentative 2 : loginCredentials({ url: rawUrl, username, password, cas })
-      try {
-        console.log('Test Signature 2 : ({ url, username, password, cas })');
-        sessionHandle = await loginCredentials({
-          url: rawUrl,
-          username: cleanUsername,
-          password: password,
-          cas: casTarget,
-        });
-      } catch (e2) {
-        console.log('Échec Signature 2 :', e2.message);
-
-        // Tentative 3 : loginCredentials(instanceData, { username, password }) avec structure pawnote
-        console.log('Test Signature 3 : (instanceObjectWithCleanURL)');
-        const instanceData = await createInstance(rawUrl);
-        sessionHandle = await loginCredentials(
-          { ...instanceData, server: rawUrl, root: rawUrl }, 
-          { username: cleanUsername, password: password, cas: casTarget }
-        );
-      }
-    }
-
-    console.log('Authentification réussie ! Récupération des données...');
-
-    // Récupération des données
+    // 3. Récupération des données
     const [
       homeData,
       gradesData,
@@ -95,7 +71,7 @@ app.post('/api/data', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Détail Erreur Finale Pronote :', err);
+    console.error('Détail Erreur Pronote :', err);
 
     res.status(401).json({
       success: false,
