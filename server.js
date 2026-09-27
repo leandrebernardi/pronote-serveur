@@ -3,7 +3,7 @@ import cors from 'cors';
 import { 
   loginCredentials, 
   instance as createInstance, 
-  cleanURL,
+  AccountKind,
   homepage, 
   gradesOverview, 
   notebook 
@@ -22,30 +22,37 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    const rawUrl = (url || '').trim();
+    let rawUrl = (url || '').trim();
+
+    // S'assurer que l'URL d'origine pointe sur /eleve.html pour l'instance
+    if (!rawUrl.includes('/eleve.html')) {
+      rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
+    }
+
     const cleanUsername = (username || '').trim();
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    console.log('1. Création de l\'instance Pronote...');
-    // Initialisation avec l'URL brute complète (pour détecter les paramètres de l'établissement)
+    console.log('1. Création de l\'instance Pronote avec :', rawUrl);
     const session = await createInstance(rawUrl);
 
-    // Extraction de la racine pure garantie terminée par un slash /
-    let baseUrl = cleanURL(rawUrl);
-    if (!baseUrl.endsWith('/')) {
-      baseUrl += '/';
-    }
+    // Extraction du compte élève
+    const studentAccount = session?.accounts?.find(a => 
+      a.name?.toLowerCase().includes('élève') || 
+      a.name?.toLowerCase().includes('eleve')
+    );
 
-    console.log('Racine nettoyée :', baseUrl);
+    // pawnote attend le type 'kind' (ex: AccountKind.Student ou le champ kind du compte)
+    const kindValue = studentAccount?.kind ?? AccountKind.Student;
+
+    console.log('Espace kind extrait :', kindValue);
 
     console.log('2. Lancement de loginCredentials...');
-    // On passe 'eleve.html' pour forcer l'accès à la page web active de l'établissement
     const sessionHandle = await loginCredentials(session, {
-      url: baseUrl,
+      url: rawUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: 'eleve.html',
+      kind: kindValue,
     });
 
     console.log('Connexion réussie ! Récupération des données...');
