@@ -3,7 +3,6 @@ import cors from 'cors';
 import { 
   loginCredentials, 
   instance as createInstance, 
-  cleanURL,
   homepage, 
   gradesOverview, 
   notebook 
@@ -24,7 +23,12 @@ app.post('/api/data', async (req, res) => {
   try {
     let rawUrl = (url || '').trim();
 
-    if (!rawUrl.includes('/eleve.html')) {
+    // S'assurer que l'URL se termine bien par /eleve.html
+    if (rawUrl.endsWith('/pronote')) {
+      rawUrl = `${rawUrl}/eleve.html`;
+    } else if (rawUrl.endsWith('/pronote/')) {
+      rawUrl = `${rawUrl}eleve.html`;
+    } else if (!rawUrl.endsWith('/eleve.html')) {
       rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
     }
 
@@ -34,12 +38,9 @@ app.post('/api/data', async (req, res) => {
     console.log('1. Création de l\'instance Pronote...');
     const session = await createInstance(rawUrl);
 
-    // Nettoyage de l'URL pour loginCredentials (pour cibler la racine du serveur Pronote)
-    const normalizedUrl = cleanURL(rawUrl);
-
-    console.log('2. Lancement de loginCredentials avec URL racine :', normalizedUrl);
+    console.log('2. Lancement de loginCredentials avec URL complète :', rawUrl);
     const sessionHandle = await loginCredentials(session, {
-      url: normalizedUrl,
+      url: rawUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
