@@ -15,13 +15,24 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    // 1. Nettoyage de la chaîne d'URL avec cleanURL
     const rawUrl = (url || '').trim();
-    const parsedUrl = cleanURL(rawUrl);
 
-    // 2. Création de l'objet instance pour pawnote
+    // 1. Obtenir une chaîne de caractères propre et sécurisée
+    let targetUrl;
+    try {
+      const cleaned = cleanURL(rawUrl);
+      // Si cleanURL renvoie un objet URL, on le convertit en string (href)
+      targetUrl = typeof cleaned === 'string' ? cleaned : cleaned.href;
+    } catch (e) {
+      // Fallback si cleanURL échoue sur le format initial
+      targetUrl = rawUrl;
+    }
+
+    console.log('URL finale transmise à pawnote :', targetUrl);
+
+    // 2. Préparation de la structure instance
     const instance = {
-      url: parsedUrl,
+      url: targetUrl,
       cas: (cas && cas !== 'none') ? cas : undefined,
     };
 
@@ -29,8 +40,6 @@ app.post('/api/data', async (req, res) => {
       username: (username || '').trim(),
       password: password,
     };
-
-    console.log('Tentative de connexion à :', parsedUrl.toString());
 
     // 3. Authentification
     const sessionHandle = await loginCredentials(instance, credentials);
