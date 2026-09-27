@@ -1,15 +1,11 @@
 import express from 'express';
 import cors from 'cors';
-import * as pawnoteModule from 'pawnote';
+import pawnote from 'pawnote';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-
-// Détermination dynamique de l'objet PronoteApi / login
-const pawnote = pawnoteModule.default || pawnoteModule;
-const PronoteApi = pawnote.PronoteApi || pawnote;
 
 app.get('/', (req, res) => {
   res.send('Serveur Pronote complet opérationnel 🚀');
@@ -19,6 +15,18 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
+    // 1. Détection de la méthode de connexion
+    const loginFn = pawnote?.login || pawnote?.PronoteApi?.login || pawnote?.default?.login || pawnote;
+
+    console.log('Structure du module pawnote :', {
+      pawnoteKeys: Object.keys(pawnote || {}),
+      loginFnType: typeof loginFn,
+    });
+
+    if (typeof loginFn !== 'function') {
+      throw new Error(`Export pawnote non reconnu. Types détectés : ${typeof pawnote}`);
+    }
+
     const loginOptions = {
       url,
       username,
@@ -29,15 +37,10 @@ app.post('/api/data', async (req, res) => {
       loginOptions.cas = cas;
     }
 
-    // Connexion
-    const loginFn = PronoteApi.login || pawnote.login || PronoteApi;
-    if (typeof loginFn !== 'function') {
-      throw new Error("Impossible d'initialiser la fonction de connexion Pawnote.");
-    }
-
+    // 2. Connexion à Pronote
     const session = await loginFn(loginOptions);
 
-    // Récupération simultanée des données
+    // 3. Récupération des données
     const [
       timetable,
       marks,
