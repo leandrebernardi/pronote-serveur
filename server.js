@@ -3,6 +3,7 @@ import cors from 'cors';
 import { 
   loginCredentials, 
   instance as createInstance, 
+  cleanURL,
   homepage, 
   gradesOverview, 
   notebook 
@@ -26,23 +27,25 @@ app.post('/api/data', async (req, res) => {
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
     console.log('1. Création de l\'instance Pronote...');
+    // Initialisation avec l'URL brute complète (pour détecter les paramètres de l'établissement)
     const session = await createInstance(rawUrl);
 
-    // Récupération de l'objet compte Élève exact retourné par l'instance
-    const studentAccountObj = session?.accounts?.find(a => 
-      a.name?.toLowerCase().includes('élève') || 
-      a.name?.toLowerCase().includes('eleve')
-    );
+    // Extraction de la racine pure garantie terminée par un slash /
+    let baseUrl = cleanURL(rawUrl);
+    if (!baseUrl.endsWith('/')) {
+      baseUrl += '/';
+    }
 
-    console.log('Compte Élève identifié :', studentAccountObj);
+    console.log('Racine nettoyée :', baseUrl);
 
     console.log('2. Lancement de loginCredentials...');
+    // On passe 'eleve.html' pour forcer l'accès à la page web active de l'établissement
     const sessionHandle = await loginCredentials(session, {
-      url: rawUrl,
+      url: baseUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: studentAccountObj || 'mobile.eleve.html',
+      kind: 'eleve.html',
     });
 
     console.log('Connexion réussie ! Récupération des données...');
