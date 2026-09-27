@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { loginCredentials, cleanURL, homepage, gradesOverview, notebook } from 'pawnote';
+import { loginCredentials, homepage, gradesOverview, notebook } from 'pawnote';
 
 const app = express();
 
@@ -15,24 +15,22 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    const rawUrl = (url || '').trim();
+    let rawUrl = (url || '').trim();
 
-    // 1. Obtenir une chaîne de caractères propre et sécurisée
-    let targetUrl;
-    try {
-      const cleaned = cleanURL(rawUrl);
-      // Si cleanURL renvoie un objet URL, on le convertit en string (href)
-      targetUrl = typeof cleaned === 'string' ? cleaned : cleaned.href;
-    } catch (e) {
-      // Fallback si cleanURL échoue sur le format initial
-      targetUrl = rawUrl;
+    // S'assurer que l'URL se termine bien par /eleve.html
+    if (rawUrl.endsWith('/pronote')) {
+      rawUrl = `${rawUrl}/eleve.html`;
+    } else if (rawUrl.endsWith('/pronote/')) {
+      rawUrl = `${rawUrl}eleve.html`;
+    } else if (!rawUrl.endsWith('/eleve.html')) {
+      rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
     }
 
-    console.log('URL finale transmise à pawnote :', targetUrl);
+    console.log('URL stricte transmise à pawnote :', rawUrl);
 
-    // 2. Préparation de la structure instance
+    // 1. Préparation de la structure d'instance sans passer par cleanURL
     const instance = {
-      url: targetUrl,
+      url: rawUrl,
       cas: (cas && cas !== 'none') ? cas : undefined,
     };
 
@@ -41,10 +39,10 @@ app.post('/api/data', async (req, res) => {
       password: password,
     };
 
-    // 3. Authentification
+    // 2. Authentification
     const sessionHandle = await loginCredentials(instance, credentials);
 
-    // 4. Récupération des données
+    // 3. Récupération des données
     const [
       homeData,
       gradesData,
