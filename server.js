@@ -41,27 +41,37 @@ app.post('/api/data', async (req, res) => {
     console.log('3. Interrogation de l\'instance Pronote...');
     const session = await createInstance(baseUrl);
 
-    // Analyse des comptes pris en charge par l'établissement
     console.log('4. Comptes détectés sur ce serveur :', JSON.stringify(session?.accounts, null, 2));
 
-    // Sélection automatique du compte élève fourni par l'instance
+    // Recherche de l'espace élève dans les comptes détectés
     const studentAccount = session?.accounts?.find(acc => 
       acc.kind === AccountKind.STUDENT || 
       acc.name?.toLowerCase().includes('élève') || 
       acc.name?.toLowerCase().includes('eleve')
     );
 
-    const selectedKind = studentAccount || AccountKind.STUDENT;
-    console.log('5. Configuration du compte retenu :', selectedKind);
+    console.log('5. Compte retenu :', studentAccount ? studentAccount.name : 'Kind STUDENT par défaut');
 
-    console.log('6. Lancement de loginCredentials...');
-    const sessionHandle = await loginCredentials(session, {
+    // Préparation des options de connexion
+    const loginOptions = {
       url: baseUrl,
       username: cleanUsername,
       password: password,
-      cas: casTarget,
-      kind: selectedKind,
-    });
+    };
+
+    if (casTarget) {
+      loginOptions.cas = casTarget;
+    }
+
+    // Transmission correcte : 'account' si l'objet existe, sinon 'kind'
+    if (studentAccount) {
+      loginOptions.account = studentAccount;
+    } else {
+      loginOptions.kind = AccountKind.STUDENT;
+    }
+
+    console.log('6. Lancement de loginCredentials...');
+    const sessionHandle = await loginCredentials(session, loginOptions);
 
     console.log('Connexion réussie ! Récupération des données...');
 
