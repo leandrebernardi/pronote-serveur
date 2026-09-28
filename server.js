@@ -24,7 +24,7 @@ app.post('/api/data', async (req, res) => {
   try {
     const rawUrl = (url || '').trim();
 
-    // 1. Nettoyage et formatage strict de l'URL racine
+    // 1. Normalisation stricte de l'URL racine avec slash final
     let baseUrl = rawUrl;
     if (baseUrl.includes('.html')) {
       baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/'));
@@ -32,65 +32,65 @@ app.post('/api/data', async (req, res) => {
     baseUrl = baseUrl.replace(/\/+$/, '') + '/';
 
     const cleanUsername = (username || '').trim();
-    const casTarget = (cas && cas !== 'none') ? cas : undefined;
+
+    // 2. Traitement strict du CAS : si 'none', 'direct' ou vide, bascule en connexion directe (undefined)
+    const rawCas = (cas || '').toString().trim().toLowerCase();
+    const casTarget = (rawCas && rawCas !== 'none' && rawCas !== 'direct' && rawCas !== 'null' && rawCas !== 'undefined') 
+      ? cas.trim() 
+      : undefined;
 
     console.log('--- DÉBUT TENTATIVE DE CONNEXION ---');
     console.log('1. URL racine :', baseUrl);
-    console.log('2. CAS demandé :', casTarget || 'Aucun (Connexion directe)');
+    console.log('2. Mode de connexion :', casTarget ? `CAS (${casTarget})` : 'Connexion directe Pronote');
 
+    // 3. Initialisation de la session auprès du serveur Pronote
     console.log('3. Interrogation de l\'instance Pronote...');
     const session = await createInstance(baseUrl);
 
-    console.log('4. Comptes détectés sur ce serveur :', JSON.stringify(session?.accounts, null, 2));
+    console.log('4. Comptes disponibles :', JSON.stringify(session?.accounts, null, 2));
 
-    // Recherche de l'espace élève dans les comptes détectés
+    // 4. Identification du compte élève
     const studentAccount = session?.accounts?.find(acc => 
       acc.kind === AccountKind.STUDENT || 
       acc.name?.toLowerCase().includes('élève') || 
       acc.name?.toLowerCase().includes('eleve')
     );
 
-    console.log('5. Compte retenu :', studentAccount ? studentAccount.name : 'Kind STUDENT par défaut');
+    const selectedAccount = studentAccount || AccountKind.STUDENT;
+    console.log('5. Compte sélectionné :', studentAccount ? studentAccount.name : 'AccountKind.STUDENT');
 
-    // Préparation des options de connexion
+    // 5. Construction de l'objet d'options conforme aux spécifications pawnote
     const loginOptions = {
-      url: baseUrl,
       username: cleanUsername,
       password: password,
+      account: selectedAccount,
     };
 
     if (casTarget) {
       loginOptions.cas = casTarget;
     }
 
-    // Transmission correcte : 'account' si l'objet existe, sinon 'kind'
-    if (studentAccount) {
-      loginOptions.account = studentAccount;
-    } else {
-      loginOptions.kind = AccountKind.STUDENT;
-    }
-
-    console.log('6. Lancement de loginCredentials...');
+    console.log('6. Exécution de loginCredentials...');
     const sessionHandle = await loginCredentials(session, loginOptions);
 
-    console.log('Connexion réussie ! Récupération des données...');
+    console.log('7. Connexion réussie ! Récupération des données...');
 
-    // 7. Récupération des données
+    // 6. Récupération parallèle des données de l'élève
     const [
       homeData,
       gradesData,
       notebookData,
     ] = await Promise.all([
       homepage(sessionHandle).catch((err) => {
-        console.error('Erreur homepage :', err);
+        console.error('Erreur lors de la récupération de la page d\'accueil :', err.message);
         return null;
       }),
       gradesOverview(sessionHandle).catch((err) => {
-        console.error('Erreur gradesOverview :', err);
+        console.error('Erreur lors de la récupération des notes :', err.message);
         return null;
       }),
       notebook(sessionHandle).catch((err) => {
-        console.error('Erreur notebook :', err);
+        console.error('Erreur lors de la récupération du cahier de textes :', err.message);
         return null;
       }),
     ]);
@@ -110,11 +110,11 @@ app.post('/api/data', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Détail Erreur Pronote :', err);
+    console.error('Détail de l\'erreur de connexion Pronote :', err);
 
     res.status(401).json({
       success: false,
-      error: err.message || 'Impossible de se connecter à Pronote.',
+      error: err.message || 'Impossible de se connecter à Pronote. Vérifiez vos identifiants ou le CAS sélectionné.',
     });
   }
 });
