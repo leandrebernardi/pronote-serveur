@@ -3,15 +3,12 @@ import cors from 'cors';
 import { 
   loginCredentials, 
   instance as createInstance, 
-  AccountKind,
   homepage, 
   gradesOverview, 
   notebook 
 } from 'pawnote';
 
-// 1. LE PATCH NAVIGATEUR (Essentiel)
-// On intercepte fetch pour faire croire au serveur Pronote que la requête 
-// vient d'un vrai navigateur Chrome, évitant ainsi le blocage "PageUnavailableError".
+// 1. LE PATCH NAVIGATEUR (Essentiel pour passer le pare-feu)
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async function (url, options = {}) {
   const headers = new Headers(options.headers || {});
@@ -37,7 +34,7 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    // Nettoyage de l'URL
+    // Nettoyage de l'URL racine
     let baseUrl = (url || '').trim();
     if (baseUrl.includes('.html')) {
       baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/'));
@@ -52,27 +49,42 @@ app.post('/api/data', async (req, res) => {
     console.log('--- DÉBUT TENTATIVE DE CONNEXION ---');
     console.log('1. URL racine :', baseUrl);
     
-    // CORRECTION 1 : On ne passe QUE l'URL, ce qui évite le crash "t is not a function"
     console.log("2. Initialisation de l'instance Pronote...");
     const session = await createInstance(baseUrl);
     console.log('3. Instance initialisée avec succès !');
 
-    // CORRECTION 2 : C'est ici que l'on indique qu'il s'agit d'un compte Élève
-    console.log('4. Exécution de loginCredentials...');
+    // CORRECTION MAJEURE : On recherche dynamiquement l'objet "compte élève" réel 
+    // présent sur le serveur (qui contient la fameuse propriété .path attendue par pawnote)
+    const eleveAccount = session.accounts?.find(acc => 
+      acc.name?.toLowerCase().includes('élève') || 
+      acc.name?.toLowerCase().includes('eleve') ||
+      acc.kind === 'student'
+    );
+
+    if (!eleveAccount) {
+        throw new Error("Aucun espace Élève n'a été trouvé sur ce serveur Pronote.");
+    }
+
+    console.log('4. Compte sélectionné :', JSON.stringify(eleveAccount));
+
+    // On prépare les options avec l'objet complet
     const loginOptions = {
+      url: baseUrl,          // Par sécurité, on redonne l'URL de base ici
       username: username.trim(),
       password: password,
-      account: AccountKind.STUDENT 
+      account: eleveAccount  // L'objet complet qui possède la propriété "path" !
     };
 
     if (casTarget) {
       loginOptions.cas = casTarget;
     }
 
+    console.log('5. Exécution de loginCredentials...');
     const sessionHandle = await loginCredentials(session, loginOptions);
-    console.log('5. Connexion réussie ! Récupération des données...');
+    
+    console.log('6. Connexion réussie ! Récupération des données...');
 
-    // Récupération des données
+    // Récupération des données en parallèle
     const [homeData, gradesData, notebookData] = await Promise.all([
       homepage(sessionHandle).catch((err) => {
         console.error('Erreur homepage :', err.message);
