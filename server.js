@@ -24,6 +24,7 @@ app.post('/api/data', async (req, res) => {
   try {
     let rawUrl = (url || '').trim();
 
+    // S'assurer d'avoir la racine de l'URL pour pawnote
     if (!rawUrl.includes('/eleve.html')) {
       rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
     }
@@ -31,32 +32,16 @@ app.post('/api/data', async (req, res) => {
     const cleanUsername = (username || '').trim();
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    console.log('--- INSPECTION ACCOUNTKIND & SESSION ---');
-    console.log('AccountKind enum :', AccountKind);
-
     console.log('1. Création de l\'instance Pronote avec :', rawUrl);
     const session = await createInstance(rawUrl);
 
-    const studentAccount = session?.accounts?.find(a => 
-      a.name?.toLowerCase().includes('élève') || 
-      a.name?.toLowerCase().includes('eleve')
-    );
-
-    console.log('Détails complets studentAccount :', studentAccount);
-
-    // Détermination de la valeur de kind selon les clés réelles de AccountKind
-    // Si AccountKind est un objet/enum, on prend la clé correspondant à l'élève
-    let targetKind = AccountKind?.ELEVE || AccountKind?.Student || AccountKind?.EspaceEleves || studentAccount;
-
-    console.log('Valeur choisie pour kind :', targetKind);
-
-    console.log('2. Lancement de loginCredentials...');
+    console.log('2. Lancement de loginCredentials avec AccountKind.STUDENT (6)...');
     const sessionHandle = await loginCredentials(session, {
       url: rawUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: targetKind,
+      kind: AccountKind.STUDENT, // Utilisation de la constante officielle de pawnote
     });
 
     console.log('Connexion réussie ! Récupération des données...');
@@ -67,9 +52,18 @@ app.post('/api/data', async (req, res) => {
       gradesData,
       notebookData,
     ] = await Promise.all([
-      homepage(sessionHandle).catch(() => null),
-      gradesOverview(sessionHandle).catch(() => null),
-      notebook(sessionHandle).catch(() => null),
+      homepage(sessionHandle).catch((err) => {
+        console.error('Erreur homepage :', err);
+        return null;
+      }),
+      gradesOverview(sessionHandle).catch((err) => {
+        console.error('Erreur gradesOverview :', err);
+        return null;
+      }),
+      notebook(sessionHandle).catch((err) => {
+        console.error('Erreur notebook :', err);
+        return null;
+      }),
     ]);
 
     res.json({
