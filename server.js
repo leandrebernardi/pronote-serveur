@@ -3,7 +3,6 @@ import cors from 'cors';
 import { 
   loginCredentials, 
   instance as createInstance, 
-  cleanURL,
   AccountKind,
   homepage, 
   gradesOverview, 
@@ -24,38 +23,36 @@ app.post('/api/data', async (req, res) => {
 
   try {
     const rawUrl = (url || '').trim();
+
+    // 1. EXTRACTION STRICTE DE LA RACINE PRONOTE
+    // Coupe tout ce qui se trouve après le dernier slash si on a un .html
+    let baseUrl = rawUrl;
+    if (baseUrl.includes('.html')) {
+      baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/'));
+    }
+    // Supprime les éventuels slashs finaux
+    baseUrl = baseUrl.replace(/\/+$/, '');
+
     const cleanUsername = (username || '').trim();
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    console.log('1. Création de l\'instance Pronote avec :', rawUrl);
-    const session = await createInstance(rawUrl);
+    console.log('1. URL formatée pour pawnote :', baseUrl);
 
-    // 2. Récupération de la racine pures sans /eleve.html à la fin
-    const baseUrl = cleanURL(rawUrl);
+    console.log('2. Création de l\'instance Pronote...');
+    const session = await createInstance(baseUrl);
 
-    // Recherche du compte élève dans la session
-    const studentAccount = session?.accounts?.find(a => 
-      a.name?.toLowerCase().includes('élève') || 
-      a.name?.toLowerCase().includes('eleve')
-    );
-
-    // Remplacement du chemin mobile.eleve.html par eleve.html si nécessaire
-    if (studentAccount) {
-      studentAccount.path = 'eleve.html';
-    }
-
-    console.log('2. Lancement de loginCredentials sur :', baseUrl);
+    console.log('3. Lancement de loginCredentials sur :', baseUrl);
     const sessionHandle = await loginCredentials(session, {
-      url: baseUrl,
+      url: baseUrl, // URL propre (ex: https://.../pronote)
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: studentAccount || AccountKind.STUDENT,
+      kind: AccountKind.STUDENT, // Laisse pawnote utiliser automatiquement mobile.eleve.html
     });
 
     console.log('Connexion réussie ! Récupération des données...');
 
-    // 3. Récupération des données
+    // 4. Récupération des données
     const [
       homeData,
       gradesData,
