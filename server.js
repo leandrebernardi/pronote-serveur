@@ -3,6 +3,7 @@ import cors from 'cors';
 import { 
   loginCredentials, 
   instance as createInstance, 
+  cleanURL,
   AccountKind,
   homepage, 
   gradesOverview, 
@@ -22,26 +23,34 @@ app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    let rawUrl = (url || '').trim();
-
-    // S'assurer d'avoir la racine de l'URL pour pawnote
-    if (!rawUrl.includes('/eleve.html')) {
-      rawUrl = rawUrl.replace(/\/+$/, '') + '/eleve.html';
-    }
-
+    const rawUrl = (url || '').trim();
     const cleanUsername = (username || '').trim();
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
     console.log('1. Création de l\'instance Pronote avec :', rawUrl);
     const session = await createInstance(rawUrl);
 
-    console.log('2. Lancement de loginCredentials avec AccountKind.STUDENT (6)...');
+    // 2. Récupération de la racine pures sans /eleve.html à la fin
+    const baseUrl = cleanURL(rawUrl);
+
+    // Recherche du compte élève dans la session
+    const studentAccount = session?.accounts?.find(a => 
+      a.name?.toLowerCase().includes('élève') || 
+      a.name?.toLowerCase().includes('eleve')
+    );
+
+    // Remplacement du chemin mobile.eleve.html par eleve.html si nécessaire
+    if (studentAccount) {
+      studentAccount.path = 'eleve.html';
+    }
+
+    console.log('2. Lancement de loginCredentials sur :', baseUrl);
     const sessionHandle = await loginCredentials(session, {
-      url: rawUrl,
+      url: baseUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: AccountKind.STUDENT, // Utilisation de la constante officielle de pawnote
+      kind: studentAccount || AccountKind.STUDENT,
     });
 
     console.log('Connexion réussie ! Récupération des données...');
