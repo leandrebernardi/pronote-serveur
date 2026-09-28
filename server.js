@@ -9,6 +9,19 @@ import {
   notebook 
 } from 'pawnote';
 
+// Interception et surcharge de fetch pour simuler un navigateur réel sur toutes les requêtes réseau
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async function (url, options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (!headers.has('User-Agent')) {
+    headers.set(
+      'User-Agent',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    );
+  }
+  return originalFetch(url, { ...options, headers });
+};
+
 const app = express();
 
 app.use(cors());
@@ -24,7 +37,7 @@ app.post('/api/data', async (req, res) => {
   try {
     const rawUrl = (url || '').trim();
 
-    // 1. Normalisation stricte de l'URL racine avec slash final
+    // 1. Normalisation de l'URL racine
     let baseUrl = rawUrl;
     if (baseUrl.includes('.html')) {
       baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/'));
@@ -33,61 +46,43 @@ app.post('/api/data', async (req, res) => {
 
     const cleanUsername = (username || '').trim();
 
-    // 2. Traitement du CAS (connexion directe si 'none', 'direct' ou non spécifié)
+    // 2. Filtrage du CAS (connexion directe si 'none', 'direct' ou non spécifié)
     const rawCas = (cas || '').toString().trim().toLowerCase();
-    const casTarget = (rawCas && rawCas !== 'none' && rawCas !== 'direct' && rawCas !== 'null' && rawCas !== 'undefined') 
-      ? cas.trim() 
-      : undefined;
+    const casTarget =
+      rawCas &&
+      rawCas !== 'none' &&
+      rawCas !== 'direct' &&
+      rawCas !== 'null' &&
+      rawCas !== 'undefined'
+        ? cas.trim()
+        : undefined;
 
     console.log('--- DÉBUT TENTATIVE DE CONNEXION ---');
     console.log('1. URL racine :', baseUrl);
     console.log('2. Mode de connexion :', casTarget ? `CAS (${casTarget})` : 'Connexion directe Pronote');
 
-    // 3. Initialisation de l'instance Pronote
-    console.log('3. Interrogation de l\'instance Pronote...');
-    const session = await createInstance(baseUrl);
+    // 3. Initialisation de l'instance directement associée au compte Élève
+    console.log('3. Initialisation de l\'instance Pronote (AccountKind.STUDENT)...');
+    const session = await createInstance(baseUrl, AccountKind.STUDENT);
 
-    console.log('4. Comptes détectés sur le serveur :', JSON.stringify(session?.accounts, null, 2));
+    console.log('4. Instance initialisée avec succès.');
 
-    // 4. Identification du compte élève
-    const rawStudentAccount = session?.accounts?.find(acc => 
-      acc.kind === AccountKind.STUDENT || 
-      acc.name?.toLowerCase().includes('élève') || 
-      acc.name?.toLowerCase().includes('eleve')
-    );
-
-    // CORRECTION CLÉ : Conversion du chemin 'mobile.eleve.html' vers 'eleve.html'
-    // pawnote requiert l'interface Web classique pour lire les scripts de démarrage RSA.
-    let selectedAccount;
-    if (rawStudentAccount) {
-      selectedAccount = {
-        ...rawStudentAccount,
-        path: rawStudentAccount.path ? rawStudentAccount.path.replace('mobile.', '') : 'eleve.html'
-      };
-    } else {
-      selectedAccount = AccountKind.STUDENT;
-    }
-
-    console.log('5. Compte sélectionné (adapté pour API) :', JSON.stringify(selectedAccount));
-
-    // 5. Construction de l'objet d'options de connexion
+    // 4. Authentification par identifiants
+    console.log('5. Exécution de loginCredentials...');
     const loginOptions = {
-      url: baseUrl,
       username: cleanUsername,
       password: password,
-      account: selectedAccount,
     };
 
     if (casTarget) {
       loginOptions.cas = casTarget;
     }
 
-    console.log('6. Exécution de loginCredentials sur :', new URL(selectedAccount.path || 'eleve.html', baseUrl).toString());
     const sessionHandle = await loginCredentials(session, loginOptions);
 
-    console.log('7. Connexion réussie ! Récupération des données...');
+    console.log('6. Connexion réussie ! Récupération des données...');
 
-    // 6. Récupération parallèle des données de l'élève
+    // 5. Récupération parallèle des données de l'élève
     const [homeData, gradesData, notebookData] = await Promise.all([
       homepage(sessionHandle).catch((err) => {
         console.error('Erreur homepage :', err.message);
