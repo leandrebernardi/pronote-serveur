@@ -33,7 +33,7 @@ app.post('/api/data', async (req, res) => {
 
     const cleanUsername = (username || '').trim();
 
-    // 2. Filtrage du CAS (connexion directe si 'none', 'direct' ou vide)
+    // 2. Traitement du CAS (connexion directe si 'none', 'direct' ou non spécifié)
     const rawCas = (cas || '').toString().trim().toLowerCase();
     const casTarget = (rawCas && rawCas !== 'none' && rawCas !== 'direct' && rawCas !== 'null' && rawCas !== 'undefined') 
       ? cas.trim() 
@@ -47,19 +47,30 @@ app.post('/api/data', async (req, res) => {
     console.log('3. Interrogation de l\'instance Pronote...');
     const session = await createInstance(baseUrl);
 
-    console.log('4. Comptes disponibles :', JSON.stringify(session?.accounts, null, 2));
+    console.log('4. Comptes détectés sur le serveur :', JSON.stringify(session?.accounts, null, 2));
 
     // 4. Identification du compte élève
-    const studentAccount = session?.accounts?.find(acc => 
+    const rawStudentAccount = session?.accounts?.find(acc => 
       acc.kind === AccountKind.STUDENT || 
       acc.name?.toLowerCase().includes('élève') || 
       acc.name?.toLowerCase().includes('eleve')
     );
 
-    const selectedAccount = studentAccount || AccountKind.STUDENT;
-    console.log('5. Compte sélectionné :', studentAccount ? studentAccount.name : 'AccountKind.STUDENT');
+    // CORRECTION CLÉ : Conversion du chemin 'mobile.eleve.html' vers 'eleve.html'
+    // pawnote requiert l'interface Web classique pour lire les scripts de démarrage RSA.
+    let selectedAccount;
+    if (rawStudentAccount) {
+      selectedAccount = {
+        ...rawStudentAccount,
+        path: rawStudentAccount.path ? rawStudentAccount.path.replace('mobile.', '') : 'eleve.html'
+      };
+    } else {
+      selectedAccount = AccountKind.STUDENT;
+    }
 
-    // 5. Structure des options de connexion
+    console.log('5. Compte sélectionné (adapté pour API) :', JSON.stringify(selectedAccount));
+
+    // 5. Construction de l'objet d'options de connexion
     const loginOptions = {
       url: baseUrl,
       username: cleanUsername,
@@ -71,44 +82,12 @@ app.post('/api/data', async (req, res) => {
       loginOptions.cas = casTarget;
     }
 
-    console.log('6. Exécution de loginCredentials...');
-    let sessionHandle;
-
-    try {
-      sessionHandle = await loginCredentials(session, loginOptions);
-    } catch (loginErr) {
-      // Diagnostic réseau automatique si la page mobile est indisponible
-      if (loginErr.name === 'PageUnavailableError' || loginErr.message?.includes('does not exist')) {
-        console.error('❌ PageUnavailableError détectée. Analyse HTTP de la page mobile...');
-        const targetUrl = new URL(studentAccount?.path || 'mobile.eleve.html', baseUrl).toString();
-
-        try {
-          const diagRes = await fetch(targetUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-          });
-          const pageText = await diagRes.text();
-
-          console.log(`[Diagnostic] Code de réponse HTTP : ${diagRes.status}`);
-
-          if (pageText.includes('ENT') || pageText.includes('EduConnect') || pageText.includes('authentification')) {
-            console.log('[Diagnostic] ⚠️ L\'établissement impose une connexion via un ENT/CAS !');
-          } else if (diagRes.status === 403 || diagRes.status === 429) {
-            console.log('[Diagnostic] ⚠️ L\'adresse IP du serveur Render est filtrée ou bloquée par Index-Éducation.');
-          } else {
-            console.log('[Diagnostic] Extrait HTML reçu :', pageText.substring(0, 250).replace(/\s+/g, ' '));
-          }
-        } catch (diagErr) {
-          console.error('[Diagnostic] Erreur lors du test HTTP :', diagErr.message);
-        }
-      }
-      throw loginErr; // Relancer l'erreur d'origine
-    }
+    console.log('6. Exécution de loginCredentials sur :', new URL(selectedAccount.path || 'eleve.html', baseUrl).toString());
+    const sessionHandle = await loginCredentials(session, loginOptions);
 
     console.log('7. Connexion réussie ! Récupération des données...');
 
-    // 6. Récupération parallèle des données
+    // 6. Récupération parallèle des données de l'élève
     const [homeData, gradesData, notebookData] = await Promise.all([
       homepage(sessionHandle).catch((err) => {
         console.error('Erreur homepage :', err.message);
@@ -143,7 +122,7 @@ app.post('/api/data', async (req, res) => {
 
     res.status(401).json({
       success: false,
-      error: err.message || 'Impossible de se connecter à Pronote.',
+      error: err.message || 'Impossible de se connecter à Pronote. Vérifiez vos identifiants.',
     });
   }
 });
