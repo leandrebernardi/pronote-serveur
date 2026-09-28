@@ -3,12 +3,11 @@ import cors from 'cors';
 import * as pronote from 'pawnote';
 
 // 1. PATCH NAVIGATEUR (Anti-Bot / WAF Bypass)
-// Très important pour les serveurs cloud comme Render
+// Force un User-Agent "Bureau" pour éviter la redirection vers mobile.eleve.html
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async function (url, options = {}) {
   const headers = new Headers(options.headers || {});
   
-  // Simulation d'un vrai navigateur pour éviter le blocage par le pare-feu d'Index-Education
   if (!headers.has('User-Agent')) {
     headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
   }
@@ -25,35 +24,32 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.send('Serveur API Pawnote (Version Finale Forcée) opérationnel 🚀');
+  res.send('Serveur API Pawnote opérationnel 🚀');
 });
 
 app.post('/api/data', async (req, res) => {
   const { url, username, password, cas } = req.body;
 
   try {
-    // 2. LA CORRECTION DÉCISIVE : Manipulation de l'URL
+    // 2. CORRECTION : On nettoie l'URL pour ne garder QUE le dossier racine.
+    // Pawnote gèrera l'ajout de "eleve.html" en interne via son clean-url.ts.
     let baseUrl = (url || '').trim();
     
-    // Si l'URL contient déjà un fichier .html, on l'isole pour repartir du dossier racine
     if (baseUrl.includes('.html')) {
       baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
     } else if (!baseUrl.endsWith('/')) {
       baseUrl += '/';
     }
-    
-    // On IMPOSE eleve.html (la version bureau) pour éviter que pawnote ne crash sur mobile.eleve.html
-    const targetUrl = baseUrl + 'eleve.html';
 
     console.log('\n--- DÉBUT TENTATIVE DE CONNEXION ---');
-    console.log('1. URL ciblée (Forcée) :', targetUrl);
+    console.log('1. URL de base (Nettoyée pour Pawnote) :', baseUrl);
     
     console.log("2. Création de la session (createSessionHandle)...");
     const session = pronote.createSessionHandle();
 
-    // 3. Application scrupuleuse de ton exemple de code
+    // 3. Configuration des options de connexion
     const loginOptions = {
-      url: targetUrl, 
+      url: baseUrl, // Utilisation stricte de l'URL racine
       kind: pronote.AccountKind.STUDENT,
       username: username.trim(),
       password: password
@@ -81,7 +77,7 @@ app.post('/api/data', async (req, res) => {
         return [];
     });
 
-    // 5. Réponse envoyée à ton frontend React
+    // 5. Réponse formatée pour ton frontend React
     res.json({
       success: true,
       user: {
