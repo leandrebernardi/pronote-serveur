@@ -24,7 +24,7 @@ app.post('/api/data', async (req, res) => {
   try {
     const rawUrl = (url || '').trim();
 
-    // Nettoyage et ajout garanti du slash final '/' pour la résolution d'URL
+    // 1. Nettoyage et formatage strict de l'URL racine
     let baseUrl = rawUrl;
     if (baseUrl.includes('.html')) {
       baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/'));
@@ -34,23 +34,38 @@ app.post('/api/data', async (req, res) => {
     const cleanUsername = (username || '').trim();
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    console.log('1. URL finale utilisée avec slash :', baseUrl);
+    console.log('--- DÉBUT TENTATIVE DE CONNEXION ---');
+    console.log('1. URL racine :', baseUrl);
+    console.log('2. CAS demandé :', casTarget || 'Aucun (Connexion directe)');
 
-    console.log('2. Création de l\'instance Pronote...');
+    console.log('3. Interrogation de l\'instance Pronote...');
     const session = await createInstance(baseUrl);
 
-    console.log('3. Lancement de loginCredentials...');
+    // Analyse des comptes pris en charge par l'établissement
+    console.log('4. Comptes détectés sur ce serveur :', JSON.stringify(session?.accounts, null, 2));
+
+    // Sélection automatique du compte élève fourni par l'instance
+    const studentAccount = session?.accounts?.find(acc => 
+      acc.kind === AccountKind.STUDENT || 
+      acc.name?.toLowerCase().includes('élève') || 
+      acc.name?.toLowerCase().includes('eleve')
+    );
+
+    const selectedKind = studentAccount || AccountKind.STUDENT;
+    console.log('5. Configuration du compte retenu :', selectedKind);
+
+    console.log('6. Lancement de loginCredentials...');
     const sessionHandle = await loginCredentials(session, {
       url: baseUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: AccountKind.STUDENT,
+      kind: selectedKind,
     });
 
     console.log('Connexion réussie ! Récupération des données...');
 
-    // 4. Récupération des données
+    // 7. Récupération des données
     const [
       homeData,
       gradesData,
