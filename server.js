@@ -33,7 +33,7 @@ app.post('/api/data', async (req, res) => {
 
     const cleanUsername = (username || '').trim();
 
-    // 2. Traitement strict du CAS : si 'none', 'direct' ou vide, bascule en connexion directe (undefined)
+    // 2. Filtrage du CAS : connexion directe si 'none', 'direct' ou non spécifié
     const rawCas = (cas || '').toString().trim().toLowerCase();
     const casTarget = (rawCas && rawCas !== 'none' && rawCas !== 'direct' && rawCas !== 'null' && rawCas !== 'undefined') 
       ? cas.trim() 
@@ -43,7 +43,7 @@ app.post('/api/data', async (req, res) => {
     console.log('1. URL racine :', baseUrl);
     console.log('2. Mode de connexion :', casTarget ? `CAS (${casTarget})` : 'Connexion directe Pronote');
 
-    // 3. Initialisation de la session auprès du serveur Pronote
+    // 3. Initialisation de l'instance Pronote
     console.log('3. Interrogation de l\'instance Pronote...');
     const session = await createInstance(baseUrl);
 
@@ -59,8 +59,9 @@ app.post('/api/data', async (req, res) => {
     const selectedAccount = studentAccount || AccountKind.STUDENT;
     console.log('5. Compte sélectionné :', studentAccount ? studentAccount.name : 'AccountKind.STUDENT');
 
-    // 5. Construction de l'objet d'options conforme aux spécifications pawnote
+    // 5. Structure d'options conforme aux attentes de loginCredentials
     const loginOptions = {
+      url: baseUrl, // Propriété requise pour la résolution de l'URL
       username: cleanUsername,
       password: password,
       account: selectedAccount,
@@ -75,22 +76,22 @@ app.post('/api/data', async (req, res) => {
 
     console.log('7. Connexion réussie ! Récupération des données...');
 
-    // 6. Récupération parallèle des données de l'élève
+    // 6. Récupération parallèle des données
     const [
       homeData,
       gradesData,
       notebookData,
     ] = await Promise.all([
       homepage(sessionHandle).catch((err) => {
-        console.error('Erreur lors de la récupération de la page d\'accueil :', err.message);
+        console.error('Erreur homepage :', err.message);
         return null;
       }),
       gradesOverview(sessionHandle).catch((err) => {
-        console.error('Erreur lors de la récupération des notes :', err.message);
+        console.error('Erreur gradesOverview :', err.message);
         return null;
       }),
       notebook(sessionHandle).catch((err) => {
-        console.error('Erreur lors de la récupération du cahier de textes :', err.message);
+        console.error('Erreur notebook :', err.message);
         return null;
       }),
     ]);
@@ -114,7 +115,7 @@ app.post('/api/data', async (req, res) => {
 
     res.status(401).json({
       success: false,
-      error: err.message || 'Impossible de se connecter à Pronote. Vérifiez vos identifiants ou le CAS sélectionné.',
+      error: err.message || 'Impossible de se connecter à Pronote.',
     });
   }
 });
