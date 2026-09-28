@@ -24,30 +24,28 @@ app.post('/api/data', async (req, res) => {
   try {
     const rawUrl = (url || '').trim();
 
-    // 1. EXTRACTION STRICTE DE LA RACINE PRONOTE
-    // Coupe tout ce qui se trouve après le dernier slash si on a un .html
+    // Nettoyage et ajout garanti du slash final '/' pour la résolution d'URL
     let baseUrl = rawUrl;
     if (baseUrl.includes('.html')) {
       baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/'));
     }
-    // Supprime les éventuels slashs finaux
-    baseUrl = baseUrl.replace(/\/+$/, '');
+    baseUrl = baseUrl.replace(/\/+$/, '') + '/';
 
     const cleanUsername = (username || '').trim();
     const casTarget = (cas && cas !== 'none') ? cas : undefined;
 
-    console.log('1. URL formatée pour pawnote :', baseUrl);
+    console.log('1. URL finale utilisée avec slash :', baseUrl);
 
     console.log('2. Création de l\'instance Pronote...');
     const session = await createInstance(baseUrl);
 
-    console.log('3. Lancement de loginCredentials sur :', baseUrl);
+    console.log('3. Lancement de loginCredentials...');
     const sessionHandle = await loginCredentials(session, {
-      url: baseUrl, // URL propre (ex: https://.../pronote)
+      url: baseUrl,
       username: cleanUsername,
       password: password,
       cas: casTarget,
-      kind: AccountKind.STUDENT, // Laisse pawnote utiliser automatiquement mobile.eleve.html
+      kind: AccountKind.STUDENT,
     });
 
     console.log('Connexion réussie ! Récupération des données...');
