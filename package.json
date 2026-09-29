@@ -9,6 +9,6 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "pronote-api-js": "^1.1.6"
+    "pronote-api": "github:bastienwirtz/pronote-api"
   }
 }
