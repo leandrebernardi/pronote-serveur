@@ -1,6 +1,6 @@
-import express from 'express';
-import cors from 'cors';
-import pronote from 'pronote-api';
+const express = require('express');
+const cors = require('cors');
+const pronote = require('pronote-api');
 
 const app = express();
 app.use(cors());
@@ -24,8 +24,7 @@ app.post('/api/data', async (req, res) => {
     console.log('\n--- DÉBUT TENTATIVE DE CONNEXION (pronote-api) ---');
     console.log("URL ciblée :", baseUrl);
 
-    // L'authentification, la gestion du User-Agent et le contournement basique
-    // sont gérés en interne par la méthode login.
+    // Connexion via pronote-api
     const session = await pronote.login(baseUrl, username, password, cas || 'none');
     
     console.log(`Connecté avec succès en tant que : ${session.user?.name || 'Élève'}`);
@@ -49,15 +48,15 @@ app.post('/api/data', async (req, res) => {
     console.error('Erreur Pronote :', err.message);
     
     if (err.code === 'ERR_BAD_CREDENTIALS') {
-        return res.status(401).json({ 
-            success: false, 
-            error: 'Identifiants incorrects.' 
-        });
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Identifiants incorrects.' 
+      });
     }
     
     res.status(500).json({
       success: false,
-      error: err.message || 'Impossible de se connecter à Pronote. Le serveur distant peut bloquer la connexion.',
+      error: err.message || 'Impossible de se connecter à Pronote.',
     });
   }
 });
