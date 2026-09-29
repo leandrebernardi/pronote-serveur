@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const pronote = require('pronote-api');
+const pronote = require('pronote-api-js');
 
 const app = express();
 app.use(cors());
@@ -21,10 +21,9 @@ app.post('/api/data', async (req, res) => {
       baseUrl += '/';
     }
     
-    console.log('\n--- DÉBUT TENTATIVE DE CONNEXION (pronote-api) ---');
+    console.log('\n--- DÉBUT TENTATIVE DE CONNEXION ---');
     console.log("URL ciblée :", baseUrl);
 
-    // Connexion via pronote-api
     const session = await pronote.login(baseUrl, username, password, cas || 'none');
     
     console.log(`Connecté avec succès en tant que : ${session.user?.name || 'Élève'}`);
@@ -46,13 +45,6 @@ app.post('/api/data', async (req, res) => {
 
   } catch (err) {
     console.error('Erreur Pronote :', err.message);
-    
-    if (err.code === 'ERR_BAD_CREDENTIALS') {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Identifiants incorrects.' 
-      });
-    }
     
     res.status(500).json({
       success: false,
