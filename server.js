@@ -1,6 +1,6 @@
-const express = require('express');
-const cors = require('cors');
-const pronote = require('pronote-api');
+import express from 'express';
+import cors from 'cors';
+import * as pronote from 'pawnote';
 
 const app = express();
 app.use(cors());
@@ -24,12 +24,25 @@ app.post('/api/data', async (req, res) => {
     console.log('\n--- DÉBUT TENTATIVE DE CONNEXION ---');
     console.log("URL ciblée :", baseUrl);
 
-    const session = await pronote.login(baseUrl, username, password, cas || 'none');
-    
+    const session = pronote.createSessionHandle();
+
+    const loginOptions = {
+      url: baseUrl,
+      kind: pronote.AccountKind.STUDENT,
+      username: username.trim(),
+      password: password
+    };
+
+    if (cas && !['none', 'direct', 'null', 'undefined'].includes(cas.toString().toLowerCase())) {
+      loginOptions.cas = cas.trim();
+    }
+
+    await pronote.loginCredentials(session, loginOptions);
     console.log(`Connecté avec succès en tant que : ${session.user?.name || 'Élève'}`);
 
-    const marks = await session.marks();
-    const timetable = await session.timetable();
+    const gradesData = await pronote.getGrades(session).catch(() => null);
+    const today = new Date();
+    const timetableData = await pronote.getTimetable(session, today, today).catch(() => []);
 
     res.json({
       success: true,
@@ -38,15 +51,14 @@ app.post('/api/data', async (req, res) => {
         className: session.user?.studentClass?.name || '',
       },
       data: {
-        grades: marks,
-        timetable: timetable,
+        grades: gradesData,
+        timetable: timetableData,
       },
     });
 
   } catch (err) {
     console.error('Erreur Pronote :', err.message);
-    
-    res.status(500).json({
+    res.status(401).json({
       success: false,
       error: err.message || 'Impossible de se connecter à Pronote.',
     });
