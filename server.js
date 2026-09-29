@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const pronote = require('pronote-api-js');
+const pronote = require('pronote-api');
 
 const app = express();
 app.use(cors());
